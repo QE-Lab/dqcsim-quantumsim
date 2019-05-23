@@ -45,20 +45,22 @@ class Qubit:
 
             # Get the measurement probabilities for this qubit.
             p0, p1 = self.qsi.sdm.peak_measurement(self.qs_ref)
+            trace = p0 + p1
 
             # This is the total probability for the event up to this point,
             # including all past measurements, so p0 and p1 might add up
             # to less than one.
             p1 /= p0 + p1
-            #self.qsi.info('probability {}', p1)
             self.classical = int(self.qsi.random_float() < p1)
 
             # Project the measurement.
             self.qsi.sdm.project_measurement(self.qs_ref, int(bool(self.classical)))
 
-            # Always renormalize, because if we don't, weird stuff happens?
-            # TODO find out why.
-            self.qsi.sdm.renormalize()
+            # Renormalize when the trace becomes too low to prevent numerical
+            # problems (we don't use the trace for anything in this plugin).
+            if trace < 1e-10:
+                self.qsi.debug('renormalizing state density matrix, trace was {}...', trace)
+                self.qsi.sdm.renormalize()
 
             # The qubit is now no longer relevant in the SDM, at least until
             # the next gate is applied. So we can take it out.
