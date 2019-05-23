@@ -15,7 +15,7 @@ setup(
     description = "DQCsim backend for QuantumSim.",
     license = "GPLv3",
     keywords = "dqcsim quantumsim",
-    url = "https://github.com/jvanstraten/dqcsim-quantumsim",
+    url = "https://github.com/QE-Lab/dqcsim-quantumsim",
     long_description = read('README.md'),
     long_description_content_type = 'text/markdown',
     classifiers = [
