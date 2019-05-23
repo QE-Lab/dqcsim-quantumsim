@@ -1,5 +1,7 @@
 # DQCsim backend wrapper for QuantumSim
 
+[![PyPi](https://badgen.net/pypi/v/dqcsim-quantumsim)](https://pypi.org/project/dqcsim-quantumsim/)
+
 See also: [DQCsim](https://github.com/mbrobbel/dqcsim) and
 [QuantumSim](https://gitlab.com/quantumsim/quantumsim).
 
