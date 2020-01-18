@@ -54,11 +54,25 @@ class QuantumSimInterface(Backend):
             # Measure the qubit to make sure it's freed in the SDM.
             qubit.measure()
 
-    def handle_measurement_gate(self, qubit_refs, *_a, **_k):
+    def handle_measurement_gate(self, qubit_refs, basis, *_a, **_k):
+        basis_hermetian = [
+            basis[0].real - basis[0].imag * 1j,
+            basis[2].real - basis[2].imag * 1j,
+            basis[1].real - basis[1].imag * 1j,
+            basis[3].real - basis[3].imag * 1j]
         measurements = []
         for qubit_ref in qubit_refs:
+            self.handle_unitary_gate([qubit_ref], basis_hermetian)
             qubit = self.qubits[qubit_ref]
             measurements.append(qubit.measure())
+            self.handle_unitary_gate([qubit_ref], basis)
+        return measurements
+
+    def handle_prepare_gate(self, qubit_refs, basis, *_a, **_k):
+        measurements = []
+        for qubit_ref in qubit_refs:
+            self.qubits[qubit_ref].prep()
+            self.handle_unitary_gate([qubit_ref], basis)
         return measurements
 
     def handle_unitary_gate(self, qubit_refs, pauli_matrix, *_a, **_k):

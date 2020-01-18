@@ -66,6 +66,15 @@ class Qubit:
 
         return Measurement(self.qubit_ref, self.classical)
 
+    def prep(self):
+        """Put this qubit in the |0> state."""
+
+        # Measure ourself to make ourselves classical.
+        self.measure()
+
+        # Set our state to 0.
+        self.classical = 0
+
     def ensure_in_sdm(self):
         """Make sure this qubit is represented in the SDM. Opposite of
         measure(), in a way. This must be called before a gate can be
