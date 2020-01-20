@@ -75,7 +75,7 @@ class QuantumSimInterface(Backend):
             self.handle_unitary_gate([qubit_ref], basis)
         return measurements
 
-    def handle_unitary_gate(self, qubit_refs, pauli_matrix, *_a, **_k):
+    def handle_unitary_gate(self, qubit_refs, unitary_matrix, *_a, **_k):
         if len(qubit_refs) == 1:
 
             # Single-qubit gate. Unpack the qubit from the list.
@@ -86,12 +86,15 @@ class QuantumSimInterface(Backend):
             qubit.ensure_in_sdm()
 
             # Convert the incoming matrix to a numpy array.
-            pauli_matrix = self.np.array([
-                pauli_matrix[0:2],
-                pauli_matrix[2:4]])
+            unitary_matrix = self.np.array([
+                unitary_matrix[0:2],
+                unitary_matrix[2:4]])
+
+            # Print what we're doing.
+            self.debug('single-qubit gate on q%s:\n%s' % (qubit_ref, unitary_matrix))
 
             # Convert the Pauli matrix to the corresponding ptm.
-            ptm = self.ptm.single_kraus_to_ptm(pauli_matrix)
+            ptm = self.ptm.single_kraus_to_ptm(unitary_matrix)
 
             # Apply the ptm.
             self.sdm.apply_ptm(qubit.qs_ref, ptm)
@@ -109,17 +112,20 @@ class QuantumSimInterface(Backend):
             qubit_b.ensure_in_sdm()
 
             # Convert the incoming matrix to a numpy array.
-            pauli_matrix = self.np.array([
-                pauli_matrix[0:4],
-                pauli_matrix[4:8],
-                pauli_matrix[8:12],
-                pauli_matrix[12:16]])
+            unitary_matrix = self.np.array([
+                unitary_matrix[0:4],
+                unitary_matrix[4:8],
+                unitary_matrix[8:12],
+                unitary_matrix[12:16]])
+
+            # Print what we're doing.
+            self.debug('two-qubit gate on q%s, q%s:\n%s' % (qubit_ref_a, qubit_ref_b, unitary_matrix))
 
             # Convert the Pauli matrix to the corresponding ptm.
-            two_ptm = self.ptm.double_kraus_to_ptm(pauli_matrix)
+            two_ptm = self.ptm.double_kraus_to_ptm(unitary_matrix)
 
             # Apply the ptm.
-            self.sdm.apply_two_ptm(qubit_a.qs_ref, qubit_b.qs_ref, two_ptm)
+            self.sdm.apply_two_ptm(qubit_b.qs_ref, qubit_a.qs_ref, two_ptm)
 
         else:
             raise RuntimeError(
