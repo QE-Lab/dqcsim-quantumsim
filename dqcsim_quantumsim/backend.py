@@ -2,7 +2,7 @@ from dqcsim_quantumsim.qubit import Qubit
 from dqcsim.plugin import *
 from dqcsim.common import *
 
-@plugin("QuantumSim interface", "Jeroen van Straten", "0.0.1")
+@plugin("QuantumSim interface", "Jeroen van Straten", "0.0.2")
 class QuantumSimInterface(Backend):
 
     # QuantumSim's SparseDM object doesn't support adding or removing qubits.

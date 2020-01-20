@@ -9,7 +9,7 @@ def read(fname):
 
 setup(
     name = "dqcsim-quantumsim",
-    version = "0.0.1",
+    version = "0.0.2",
     author = "Jeroen van Straten",
     author_email = "j.vanstraten-1@tudelft.nl",
     description = "DQCsim backend for QuantumSim.",
@@ -25,7 +25,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     packages = ['dqcsim_quantumsim'],
-    install_requires = ['dqcsim', 'quantumsim'],
+    install_requires = ['dqcsim>=0.0.13', 'quantumsim==0.2'],
     data_files = [
         ('bin', [
             'data/bin/dqcsbequantumsim',
