@@ -30,7 +30,7 @@ class QuantumSimInterface(Backend):
         # Qubit data for each upstream qubit.
         self.qubits = {}
 
-    def handle_init(self, *_a, **_k):
+    def handle_init(self, _cmds):
         # Loading QuantumSim can take some time, so defer to initialize
         # callback. We also have logging at that point in time, so it should
         # provide a nice UX.
@@ -43,39 +43,59 @@ class QuantumSimInterface(Backend):
         self.np = np
         self.info('QuantumSim loaded {}using CUDA acceleration', '' if sdm.using_gpu else '*without* ')
 
-    def handle_allocate(self, qubit_refs, *_a, **_k):
+    def handle_allocate(self, qubit_refs, _cmds):
         for qubit_ref in qubit_refs:
             self.qubits[qubit_ref] = Qubit(self, qubit_ref)
 
-    def handle_free(self, qubit_refs, *_a, **_k):
+    def handle_free(self, qubit_refs):
         for qubit_ref in qubit_refs:
             qubit = self.qubits.pop(qubit_ref)
 
             # Measure the qubit to make sure it's freed in the SDM.
             qubit.measure()
 
-    def handle_measurement_gate(self, qubit_refs, basis, *_a, **_k):
+    def handle_measurement_gate(self, qubit_refs, basis, arb):
+
+        # Determine the projection method.
+        if 'method' in arb:
+            methods = arb['method']
+        else:
+            methods = 'random'
+        if isinstance(methods, list):
+            if len(methods) != len(qubit_refs):
+                raise ValueError('method key does not have the right list size')
+        elif isinstance(methods, str):
+            methods = [methods] * len(qubit_refs)
+        elif isinstance(methods, int):
+            methods = [(methods >> i) & 1 for i in reversed(range(len(qubit_refs)))]
+        else:
+            raise ValueError('failed to parse method key')
+
+        # Determine the hermitian of the basis for rotating back after
+        # measuring.
         basis_hermetian = [
             basis[0].real - basis[0].imag * 1j,
             basis[2].real - basis[2].imag * 1j,
             basis[1].real - basis[1].imag * 1j,
             basis[3].real - basis[3].imag * 1j]
+
+        # Perform the measurements.
         measurements = []
-        for qubit_ref in qubit_refs:
-            self.handle_unitary_gate([qubit_ref], basis_hermetian)
+        for qubit_ref, method in zip(qubit_refs, methods):
+            self.handle_unitary_gate([qubit_ref], basis_hermetian, None)
             qubit = self.qubits[qubit_ref]
-            measurements.append(qubit.measure())
-            self.handle_unitary_gate([qubit_ref], basis)
+            measurements.append(qubit.measure(method))
+            self.handle_unitary_gate([qubit_ref], basis, None)
         return measurements
 
-    def handle_prepare_gate(self, qubit_refs, basis, *_a, **_k):
+    def handle_prepare_gate(self, qubit_refs, basis, _arb):
         measurements = []
         for qubit_ref in qubit_refs:
             self.qubits[qubit_ref].prep()
-            self.handle_unitary_gate([qubit_ref], basis)
+            self.handle_unitary_gate([qubit_ref], basis, None)
         return measurements
 
-    def handle_unitary_gate(self, qubit_refs, unitary_matrix, *_a, **_k):
+    def handle_unitary_gate(self, qubit_refs, unitary_matrix, _arb):
         if len(qubit_refs) == 1:
 
             # Single-qubit gate. Unpack the qubit from the list.

@@ -43,12 +43,13 @@ class DeutschJozsa(Frontend):
         # Measure the input.
         self.h_gate(qi)
         self.measure(qi)
-        if self.get_measurement(qi).value:
-            self.info('Oracle was balanced!')
+        measurement = self.get_measurement(qi)
+        if measurement.value:
+            self.info('Oracle was balanced! The probability is %f' % measurement['probability'])
             if expected != 'balanced':
                 raise ValueError('unexpected oracle result!')
         else:
-            self.info('Oracle was constant!')
+            self.info('Oracle was constant! The probability is %f' % measurement['probability'])
             if expected != 'constant':
                 raise ValueError('unexpected oracle result!')
 

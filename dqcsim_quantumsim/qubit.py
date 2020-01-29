@@ -1,5 +1,6 @@
 from dqcsim.plugin import *
 from dqcsim.common import *
+import struct
 
 class Qubit:
     def __init__(self, qsi, qubit_ref):
@@ -35,8 +36,20 @@ class Qubit:
             self.qsi.live_qs_qubits.add(new_qs_ref)
             self._qs_ref = new_qs_ref
 
-    def measure(self):
-        """Measure this qubit in the Z basis."""
+    def measure(self, method='random'):
+        """Measure this qubit in the Z basis.
+
+        The following methods are supported:
+
+         - 'random': calculate the probabilities for measuring a 0 vs a 1 and
+           use DQCsim's PRNG to select one.
+         - 'probable': calculate the probabilities for measuring a 0 vs a 1 and
+           select the most probable.
+         - 1: project the measurement to one regardless of probability.
+         - 0: project the measurement to zero regardless of probability.
+
+        The latter two return an error if the probability for projecting to the
+        requested state is zero."""
 
         # If this qubit is live within the SDM, observe it.
         if self.qs_ref is not None:
@@ -44,15 +57,34 @@ class Qubit:
             # Get the measurement probabilities for this qubit.
             p0, p1 = self.qsi.sdm.peak_measurement(self.qs_ref)
             trace = p0 + p1
+            p0 /= trace
+            p1 /= trace
 
-            # This is the total probability for the event up to this point,
-            # including all past measurements, so p0 and p1 might add up
-            # to less than one.
-            p1 /= p0 + p1
-            self.classical = int(self.qsi.random_float() < p1)
+            # Select the value we're going to project to.
+            if method == 'random':
+                self.classical = int(self.qsi.random_float() < p1)
+            elif method == 'probable':
+                self.classical = int(p1 > p0)
+            elif method == 0:
+                if p0 < 1.e-20:
+                    raise ValueError('cannot project to 0, probability too low at %f' % p0)
+                self.classical = 0
+            elif method == 1:
+                if p1 < 1.e-20:
+                    raise ValueError('cannot project to 1, probability too low at %f' % p1)
+                self.classical = 1
+            else:
+                raise ValueError('unknown measurement method %r' % method)
 
             # Project the measurement.
             self.qsi.sdm.project_measurement(self.qs_ref, int(bool(self.classical)))
+
+            # Determine and process the probability of this measurement.
+            if self.classical:
+                p = p1
+            else:
+                p = p0
+            trace *= p
 
             # Renormalize when the trace becomes too low to prevent numerical
             # problems (we don't use the trace for anything in this plugin).
@@ -64,7 +96,25 @@ class Qubit:
             # the next gate is applied. So we can take it out.
             self.qs_ref = None
 
-        return Measurement(self.qubit_ref, self.classical)
+        # If this qubit was "classical", still process the method.
+        else:
+            if method == 'random':
+                pass
+            elif method == 'probable':
+                pass
+            elif method == 0:
+                if self.classical != 0:
+                    raise ValueError('cannot project to 0, qubit state was classical 1')
+            elif method == 1:
+                if self.classical != 1:
+                    raise ValueError('cannot project to 1, qubit state was classical 0')
+            else:
+                raise ValueError('unknown measurement method %r' % method)
+
+            # The probability is always 1.0
+            p = 1.0
+
+        return Measurement(self.qubit_ref, self.classical, struct.pack('<d', p), probability=p)
 
     def prep(self):
         """Put this qubit in the |0> state."""
