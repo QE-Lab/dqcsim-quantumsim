@@ -25,7 +25,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     packages = ['dqcsim_quantumsim'],
-    install_requires = ['dqcsim>=0.0.13', 'quantumsim==0.2'],
+    install_requires = ['dqcsim>=0.2.0', 'quantumsim==0.2'],
     tests_require = [
         'nose',
     ],
