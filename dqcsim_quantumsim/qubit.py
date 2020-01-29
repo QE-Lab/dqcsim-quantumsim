@@ -3,7 +3,14 @@ from dqcsim.common import *
 import struct
 
 class Qubit:
-    def __init__(self, qsi, qubit_ref):
+    def __init__(self, qsi, qubit_ref, t1=None, t2=None):
+        """Construct a qubit wrapper for the given `QuantumSimInterface`,
+        upstream qubit reference, and t1/t2 times.
+
+        t1 is the amplitude damping time as measured in free decay experiments,
+        t2 is the phase damping time as measured in ramsey or echo experiments.
+        If unspecified or `None`, they are made infinite. Their unit is DQCsim
+        cycles."""
         super().__init__()
         self.qsi = qsi
 
@@ -18,6 +25,22 @@ class Qubit:
         # measurement for when we have to add it again. None is used for
         # undefined.
         self.classical = 0
+
+        # Calculate error parameters.
+        if t1 is None:
+            t1 = qsi.np.inf
+        if t2 is None:
+            t2 = qsi.np.inf
+        if qsi.np.allclose(t2, 2 * t1):
+            t_phi = qsi.np.inf
+        else:
+            t_phi = 1 / (1 / t2 - 1 / (2 * t1)) / 2
+        self.t1 = t1
+        self.t2 = t2
+        self.t_phi = t_phi
+
+        # Number of cycles this qubit has been idle.
+        self._idle_time = 0
 
     @property
     def qs_ref(self):
@@ -50,6 +73,9 @@ class Qubit:
 
         The latter two return an error if the probability for projecting to the
         requested state is zero."""
+
+        # Apply any pending error before measuring.
+        self.apply_pending_error()
 
         # If this qubit is live within the SDM, observe it.
         if self.qs_ref is not None:
@@ -119,6 +145,9 @@ class Qubit:
     def prep(self):
         """Put this qubit in the |0> state."""
 
+        # Reset idle time.
+        self._idle_time = 0
+
         # Measure ourself to make ourselves classical.
         self.measure()
 
@@ -145,3 +174,32 @@ class Qubit:
             # Make sure the SDM has the right bit value set.
             assert self.qs_ref in self.qsi.sdm.classical
             self.qsi.sdm.classical[self.qs_ref] = int(bool(self.classical))
+
+    def apply_pending_error(self):
+        """Apply any remaining idling errors."""
+
+        # If no time has passed, we don't have to do anything.
+        if not self._idle_time:
+            return
+
+        # If this qubit is perfect, we don't have to do anything.
+        if self.t1 == self.qsi.np.inf and self.t_phi == self.qsi.np.inf:
+            return
+
+        # Make sure the qubit is in the SDM.
+        self.ensure_in_sdm()
+
+        # Construct the Pauli transfer matrix for the error.
+        gamma = 1 - self.qsi.np.exp(-self._idle_time / self.t1)
+        lamda = 1 - self.qsi.np.exp(-self._idle_time / self.t_phi)
+        ptm = self.qsi.ptm.amp_ph_damping_ptm(gamma, lamda)
+
+        # Apply the Pauli transfer matrix.
+        self.qsi.sdm.apply_ptm(self.qs_ref, ptm)
+
+        # Reset the idle time.
+        self._idle_time = 0
+
+    def idle(self, time):
+        """Pend some idle time for this qubit."""
+        self._idle_time += time
