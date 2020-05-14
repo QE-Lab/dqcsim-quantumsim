@@ -9,7 +9,7 @@ def read(fname):
 
 setup(
     name = "dqcsim-quantumsim",
-    version = "0.0.4",
+    version = "0.0.5",
     author = "Jeroen van Straten",
     author_email = "j.vanstraten-1@tudelft.nl",
     description = "DQCsim backend for QuantumSim.",
